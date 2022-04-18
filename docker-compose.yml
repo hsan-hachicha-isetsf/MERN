@@ -1,0 +1,74 @@
+# docker compose version which is currently 3.8
+version: "3.8"
+
+# services : is a list of our container
+services:
+  # name is optional for our mongodb
+  mymongodb:
+    # since mongo is an offical image we can use it.
+    image: "mongo"
+    restart: always
+    # the port that we want to publish for mongodb
+    ports:
+      - "27017:27017"
+
+    # our mongodb depends on volume to keep the data alive.
+    volumes:
+      - data:/data/db
+    networks:
+            - example-net 
+    # our environment variable
+     #environment:
+      #MONGO_INITDB_ROOT_USERNAME: "anas"
+      #MONGO_INITDB_ROOT_PASSWORD: "12345"
+
+  # name is optional for our backend
+  api:
+    # to build an image based on Dockerfile
+    # it looks in this folder to find Dockerfile to build an image
+    build: ./server
+    # the port that we want to publish for backend
+    ports:
+      - "3001:3001"
+    networks:
+            - example-net   
+    external_links:
+      - mymongodb
+
+    # depends_on means it will start our backend container once mongo-container is  up and running.
+    depends_on:
+      - mymongodb
+  
+  client:   
+        build:
+            context: ./client
+        volumes: 
+            - /app/node_modules
+           # - ./client:/app    
+        #request will forward to same url, so we only need /api to distinguish that this request will forward to our backend           
+        restart: on-failure
+        container_name: client
+        networks:
+            - example-net 
+  
+  nginx:
+        
+        build:
+            context: ./nginx
+            dockerfile: Dockerfile.dev
+        ports: 
+            - 3050:1080
+        restart: always
+        depends_on:
+         - api
+         - client
+        networks:
+            - example-net  
+
+# declare the volumes name that our app is using.
+volumes:
+  data:
+
+networks:
+  example-net:
+    
